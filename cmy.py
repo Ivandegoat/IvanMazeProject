@@ -49,6 +49,23 @@ def carveMaze(app, startRow, startCol):
 
         if not carved:
             stack.pop()  # backtrack
+def isLegal(app, x, y):
+    r = app.playerRadius
+    if not (r <= x <= app.width - r and r <= y <= app.height - r):
+        return False
+    points = [
+        (x - r, y), (x + r, y),
+        (x, y - r), (x, y + r)
+    ]
+    for px, py in points:
+        row = int(py // app.cellSize)
+        col = int(px // app.cellSize)
+        if app.maze[row][col] == 1:
+            return False
+        if (row, col) == (app.end) and len(app.cubes)>0:
+            return False
+
+    return True
 
 def redrawAll(app):
     for row in range(app.rows):
