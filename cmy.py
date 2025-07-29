@@ -1,6 +1,6 @@
 from cmu_graphics import *
 import random
-
+import math
 def onAppStart(app):
     app.startScreen = True
     app.count = 0
@@ -38,16 +38,61 @@ def onAppStart(app):
     app.cubes = []
     generateCubes(app)
 
+def onKeyPress(app, key):
+    #Decreaase the size of player when in 3d mode
+    # for easier movement
+    if key == 'f':
+        if app.count % 2 == 1:
+            app.playerRadius = app.cellSize * 0.4
+        else:
+            app.playerRadius = app.cellSize * 0.1
+        app.game3D = not app.game3D
+        app.count += 1
+
+    # Snap player to center of the cell to avoid wall collision
+        col = int(app.playerX // app.cellSize)
+        row = int(app.playerY // app.cellSize)
+        if app.maze[row][col] == 0:
+            app.playerX = col * app.cellSize + app.cellSize / 2
+            app.playerY = row * app.cellSize + app.cellSize / 2
+
 def onKeyHold(app, keys):
+    if app.gameOver:
+        if 'r' in keys:
+            app.level = 1
+            app.gameOver = False
+            resetMaze(app)
+        return
+
     dx, dy = 0, 0
-    if 'a' in keys:
-        dx -= 5
-    if 'd' in keys:
-        dx += 5
-    if 'w' in keys:
-        dy -= 5
-    if 's' in keys:
-        dy += 5
+    # Always allow turning independently of movement
+    if app.game3D:
+        # Turn first
+        if 'a' in keys:
+            app.angle -= 11
+        if 'd' in keys:
+            app.angle += 11
+        app.angle %= 360
+
+        # Then move forward/backward relative to angle
+        if 'w' in keys:
+            dx += app.speed * math.cos(math.radians(app.angle))
+            dy += app.speed * math.sin(math.radians(app.angle))
+        if 's' in keys:
+            
+            dx -= app.speed * math.cos(math.radians(app.angle))
+            dy -= app.speed * math.sin(math.radians(app.angle))
+
+    else:
+        # 2D mode: simple dx, dy based on keys
+        if 'a' in keys:
+            dx -= 5
+        if 'd' in keys:
+            dx += 5
+        if 'w' in keys:
+            dy -= 5
+        if 's' in keys:
+            dy += 5
 
     newX = app.playerX + dx
     newY = app.playerY + dy
@@ -62,7 +107,7 @@ def onKeyHold(app, keys):
     app.cubes = [(r, c) for (r, c) in app.cubes
                  if not (r == row and c == col)]
     if row == app.rows - 1 and col == app.exitCol and len(app.cubes) == 0:
-        print("Maze completed! Generating a new one...")
+        
         app.level += 1
         resetMaze(app)
 def resetMaze(app):
