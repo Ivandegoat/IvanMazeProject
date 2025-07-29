@@ -31,10 +31,12 @@ def onAppStart(app):
             break
     app.start = (0, 1)
     app.end = (app.rows - 1, app.exitCol)
+
     app.playerX = startCol * app.cellSize + app.cellSize / 2
     app.playerY = startRow * app.cellSize + app.cellSize / 2
     app.speed = 3
     app.cubes = []
+    generateCubes(app)
 
 def onKeyHold(app, keys):
     dx, dy = 0, 0
@@ -77,6 +79,7 @@ def resetMaze(app):
             break
     app.playerX = startCol * app.cellSize + app.cellSize / 2
     app.playerY = startRow * app.cellSize + app.cellSize / 2
+    generateCubes(app)
     
 
 def onMousePress(app, mouseX, mouseY):
@@ -86,7 +89,26 @@ def onMousePress(app, mouseX, mouseY):
         if btnX <= mouseX <= btnX + btnW and btnY <= mouseY <= btnY + btnH:
             app.startScreen = False
 
+def generateCubes(app):
+    while len(app.cubes) < app.level:
+        row = random.randint(1, app.rows - 2)
+        col = random.randint(1, app.cols - 2)
+        if app.maze[row][col] == 0 and (row, col) not in [app.start, app.end]:
+            app.cubes.append((row, col))
 
+def getDistance(app, x, y):
+    return ((x - app.playerX) ** 2 + (y - app.playerY) ** 2) ** 0.5
+
+def getHitType(app, row, col):
+    if app.maze[row][col] == 1:
+        return 'wall'
+    elif (row, col) == app.start:
+        return 'start'
+    elif (row, col) == app.end:
+        return 'end'
+    elif (row, col) in app.cubes:
+        return 'cube'
+    return None
 def carveMaze(app, startRow, startCol):
     stack = [(startRow, startCol)]  # fixed variable name
 
@@ -144,11 +166,25 @@ def redrawAll(app):
         drawLabel('Start Game', app.width/2, btnY + btnH/2, size=24, fill='white', bold=True)
         return  # Don't draw the game yet if start screen is active
     for row in range(app.rows):
-        for col in range(app.cols):
-            color = 'black' if app.maze[row][col] == 1 else 'white'
-            drawRect(col * app.cellSize, row * app.cellSize,
-                     app.cellSize, app.cellSize,
-                     fill=color)
+            for col in range(app.cols):
+                color = 'black' if app.maze[row][col] == 1 else 'white'
+                drawRect(col * app.cellSize, row * app.cellSize,
+                         app.cellSize, app.cellSize, fill=color)
+
+    drawRect(1 * app.cellSize, 0, app.cellSize, app.cellSize, fill='green')
+    drawRect(app.exitCol * app.cellSize, (app.rows - 1) * app.cellSize,
+                 app.cellSize, app.cellSize, fill='red')
+
+
+    drawCircle(app.playerX, app.playerY, app.playerRadius, fill='blue', rotateAngle=app.angle)
+    for (row, col) in app.cubes:
+        drawRect(col * app.cellSize+5, row * app.cellSize+5,
+                app.cellSize-10, app.cellSize-10, fill="blue")
+    
+
+  
+    
+
 
     # Draw entrance (green) and exit (red)
     drawRect(1 * app.cellSize, 0, app.cellSize, app.cellSize, fill='green')
