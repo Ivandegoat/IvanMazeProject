@@ -2,24 +2,27 @@ from cmu_graphics import *
 import random
 import math
 def onAppStart(app):
+    app.wallBreaksLeft = 3
+    app.lastKeyPressed = 'd'
+    app.timer = 45
+    app.gameOver = False
+    app.levelScreen = False
     app.startScreen = True
     app.count = 0
     app.rows = 17
     app.cols = 17
-    app.cellSize = 20
+    app.cellSize = 25
     app.width = app.cols*app.cellSize
     app.height = app.cellSize*app.rows
-    app.setMaxShapeCount(5000)
     app.level = 1
     app.playerRadius = app.cellSize*0.4
-    app.gameOver = False
     app.maze = [[1 for _ in range(app.cols)] for _ in range(app.rows)]
     app.angle = 270
     app.game3D = False
     startRow, startCol = 1, 1
     app.maze[startRow][startCol] = 0
     carveMaze(app, startRow, startCol)
-
+    
     
 
 
@@ -34,13 +37,29 @@ def onAppStart(app):
 
     app.playerX = startCol * app.cellSize + app.cellSize / 2
     app.playerY = startRow * app.cellSize + app.cellSize / 2
-    app.speed = 3
     app.cubes = []
     generateCubes(app)
+    app.steps = 0
+def onStep(app):
+    if app.startScreen:
+        return
+    app.steps += 1
+    if app.gameOver:
+        return
+    if app.steps%30 == 0:
+        
+        app.timer -= 1
+        if app.timer == 0:
+            app.gameOver = True
+
+    if app.levelScreen:
+        app.levelScreenTimer -= 1
+        if app.levelScreenTimer <= 0:
+            app.levelScreen = False
+        return
 
 def onKeyPress(app, key):
-    #Decreaase the size of player when in 3d mode
-    # for easier movement
+
     if key == 'f':
         if app.count % 2 == 1:
             app.playerRadius = app.cellSize * 0.4
@@ -55,6 +74,7 @@ def onKeyPress(app, key):
         if app.maze[row][col] == 0:
             app.playerX = col * app.cellSize + app.cellSize / 2
             app.playerY = row * app.cellSize + app.cellSize / 2
+    
 
 def onKeyHold(app, keys):
     if app.gameOver:
@@ -76,12 +96,12 @@ def onKeyHold(app, keys):
 
         # Then move forward/backward relative to angle
         if 'w' in keys:
-            dx += app.speed * math.cos(math.radians(app.angle))
-            dy += app.speed * math.sin(math.radians(app.angle))
+            dx += 4 * math.cos(math.radians(app.angle))
+            dy += 4 * math.sin(math.radians(app.angle))
         if 's' in keys:
             
-            dx -= app.speed * math.cos(math.radians(app.angle))
-            dy -= app.speed * math.sin(math.radians(app.angle))
+            dx -= 4 * math.cos(math.radians(app.angle))
+            dy -= 4 * math.sin(math.radians(app.angle))
 
     else:
         # 2D mode: simple dx, dy based on keys
@@ -197,46 +217,140 @@ def isLegal(app, x, y):
     return True
 
 def redrawAll(app):
-    if app.startScreen:
+    if app.gameOver:
+        drawRect(0,0,app.width,app.height, fill = 'black')
+        drawLabel("Game Over", app.width//2, app.height//2-10,
+                  fill = "red", size=45, font = "Times New Roman")
+        drawLabel("Press r to restart",app.width//2, app.height//2+30,
+                   fill = "white", size=14)
+        return
+    if app.levelScreen:
         drawRect(0, 0, app.width, app.height, fill='black')
-        drawLabel('MAZE ESCAPE', app.width/2, 80, size=40, fill='white', bold=True)
-        drawLabel('Use W/A/S/D to move and turn.', app.width/2, 140, size=20, fill='lightGray')
-        drawLabel('Press F to toggle 3D view.', app.width/2, 160, size=20, fill='lightGray')
-        drawLabel('Green is the start. Red is the end', app.width/2, 180, size=20, fill='lightGray')
-        drawLabel('Collect all the blue cubes before exiting', app.width/2, 200, size=20, fill='lightGray')
+        drawLabel(f'Level {app.level}', app.width/2, app.height/2,
+                   size=50, fill='white')
+        return
+    if app.startScreen:
+        for row in range(app.rows):
+            for col in range(app.cols):
+                color = 'black' if app.maze[row][col] == 1 else 'white'
+                drawRect(col * app.cellSize, row * app.cellSize,
+                         app.cellSize, app.cellSize, fill=color)
+        drawRect(0,0, app.width,app.height, fill = "blue")
+        drawLabel('MAZE ESCAPE', app.width/2, app.height-400, size=50, 
+                  fill='white', bold=True)
+        drawLabel('Use W/A/S/D to move and turn.', app.width/2, app.height-360 ,
+                   size=20, fill='lightGray')
+        drawLabel('Press F to toggle 3D view.', app.width/2,
+                   app.height-340, size=20, fill='lightGray')
+        drawLabel('You can only play fullscreen in 3D mode',
+                   app.width/2, app.height-320, size=20, fill='lightGray')
+        drawLabel('Timer goes faster in 2d mode', app.width/2,
+                   app.height-300, size=20, fill='lightGray')
+        drawLabel('Collect all the pink cubes before exiting',
+                   app.width/2, app.height-280, size=20, fill='lightGray')
         
+        drawLabel('Wall Break (E):', app.width//2, app.height-250,
+                   size=16, fill ="white")
+        drawLabel('- Press E to break the wall you\'re facing', app.width//2,
+                   app.height-230, size=16, fill="white")
+        drawLabel('- 3 uses per game', app.width//2, app.height-210, size=16,
+                   fill="white")
+        drawLabel('- In 2D: breaks the last direction you walked', app.width//2,
+                   app.height-190, size=16, fill="white")
+        drawLabel('- In 3D: breaks the wall you\'re looking at', app.width//2,
+                   app.height-170, size=16, fill = "white")
+        drawLabel('- Cannot break border walls', app.width//2, app.height-150,
+                   size=16, fill = "white")
+
         # Draw the Start button
         btnX, btnY, btnW, btnH = app.width/2 - 75, app.height * 0.7, 150, 50
-        drawRect(btnX, btnY, btnW, btnH, fill='green', border='white', borderWidth=3)
-        drawLabel('Start Game', app.width/2, btnY + btnH/2, size=24, fill='white', bold=True)
+        drawRect(btnX, btnY, btnW, btnH, fill='green', border='white',
+                  borderWidth=3)
+        drawLabel('Start Game', app.width/2, btnY + btnH/2, size=24,
+                   fill='white', bold=True)
         return  # Don't draw the game yet if start screen is active
-    for row in range(app.rows):
+    if app.game3D:
+        draw3DView(app)  # MODIFIED: 3D rendering
+        
+    else:
+        
+        for row in range(app.rows):
             for col in range(app.cols):
                 color = 'black' if app.maze[row][col] == 1 else 'white'
                 drawRect(col * app.cellSize, row * app.cellSize,
                          app.cellSize, app.cellSize, fill=color)
 
-    drawRect(1 * app.cellSize, 0, app.cellSize, app.cellSize, fill='green')
-    drawRect(app.exitCol * app.cellSize, (app.rows - 1) * app.cellSize,
+        drawRect(1 * app.cellSize, 0, app.cellSize, app.cellSize, fill='green')
+        drawRect(app.exitCol * app.cellSize, (app.rows - 1) * app.cellSize,
                  app.cellSize, app.cellSize, fill='red')
 
 
-    drawCircle(app.playerX, app.playerY, app.playerRadius, fill='blue', rotateAngle=app.angle)
-    for (row, col) in app.cubes:
-        drawRect(col * app.cellSize+5, row * app.cellSize+5,
-                app.cellSize-10, app.cellSize-10, fill="blue")
+        drawCircle(app.playerX, app.playerY, app.playerRadius, fill='blue',
+                    rotateAngle=app.angle)
+        for (row, col) in app.cubes:
+            drawRect(col * app.cellSize+5, row * app.cellSize+5,
+                app.cellSize-10, app.cellSize-10, fill="coral")
+        minutes = app.timer // 60
+        seconds = app.timer % 60
+        timeText = f"{minutes:02}:{seconds:02}"
+        drawLabel(f"Time Left: {timeText}", app.width//2, 10, size=18,
+                   bold=True, fill='white')
+        drawLabel(f"Breaks left: {app.wallBreaksLeft}", app.width//2,
+                   app.height-10, size=18, bold=True, fill='white')
+
+def draw3DView(app):
+    stepRad = math.radians(0.45) # 200
+    rayCount = 200
+    sliceWidth = app.width / rayCount
+    startRad = math.radians(app.angle) - (stepRad * (rayCount - 1) / 2)
+    rayLength = 100
+
+    rayHits = []
+
+    # Cast rays
+    for i in range(rayCount):
+        angle = startRad + i * stepRad
+        for r in range(1, rayLength + 1):
+            rayX = app.playerX + r * math.cos(angle)
+            rayY = app.playerY + r * math.sin(angle)
+            row = int(rayY // app.cellSize)
+            col = int(rayX // app.cellSize)
+
+            if not (0 <= row < app.rows and 0 <= col < app.cols):
+                break
+
+            hitType = getHitType(app, row, col)
+            if hitType:
+                dist = getDistance(app, rayX, rayY)
+                rayHits.append((i, dist, hitType))
+                break
+
+    drawRect(0,0, app.width, app.height, fill='goldenrod')
+    drawRect(0,0, app.width, app.height//2,fill='beige')
+
+    # Dark gradient overlay
+    drawRect(0, 0, app.width, app.height, fill=gradient('white', 'black'),
+              opacity=80)
     
-
-  
     
+    # Render vertical slices
+    for i, dist, kind in rayHits:
+        x = i * sliceWidth
+        height = app.height / dist * 10
+        y = app.height / 2 - height / 2
+        op = max(5, min(100, 20000 / (dist ** 1.5)))
 
-
-    # Draw entrance (green) and exit (red)
-    drawRect(1 * app.cellSize, 0, app.cellSize, app.cellSize, fill='green')
-    drawRect(app.exitCol * app.cellSize, (app.rows - 1) * app.cellSize,
-             app.cellSize, app.cellSize, fill='red')
-
-    # Draw player circle (blue)
-    drawCircle(app.playerX, app.playerY, app.playerRadius, fill='blue')
-
+        colors = {'wall': 'olive', 'start': 'green', 'end': 'red',
+                   'cube': 'lightpink'}
+        drawRect(x, y, sliceWidth, height, fill=colors[kind], opacity=op)
+    
+    drawLabel(f"Cubes left: {len(app.cubes)}", app.width//2, 50,bold=True,
+               size = 18)
+    minutes = app.timer // 60
+    seconds = app.timer % 60
+    timeText = f"{minutes:02}:{seconds:02}"
+    drawLabel(f"Time Left: {timeText}", app.width//2, 80, size=18, bold=True,
+               fill='black')
+    drawLabel(f"Breaks left: {app.wallBreaksLeft}", app.width//2, 110, size=18,
+               bold=True, fill='black')
 runApp()
