@@ -1,10 +1,11 @@
 from cmu_graphics import *
 import random
 import math
+
 def onAppStart(app):
     app.wallBreaksLeft = 3
     app.lastKeyPressed = 'd'
-    app.timer = 45
+    app.timer = 30
     app.gameOver = False
     app.levelScreen = False
     app.startScreen = True
@@ -40,6 +41,7 @@ def onAppStart(app):
     app.cubes = []
     generateCubes(app)
     app.steps = 0
+    
 def onStep(app):
     if app.startScreen:
         return
@@ -58,6 +60,14 @@ def onStep(app):
             app.levelScreen = False
         return
 
+        
+
+def onMousePress(app, mouseX, mouseY):
+    if app.startScreen:
+        # Check if click is inside the Start button
+        btnX, btnY, btnW, btnH = app.width/2 - 75, app.height * 0.7, 150, 50
+        if btnX <= mouseX <= btnX + btnW and btnY <= mouseY <= btnY + btnH:
+            app.startScreen = False
 def onKeyPress(app, key):
 
     if key == 'f':
@@ -74,7 +84,43 @@ def onKeyPress(app, key):
         if app.maze[row][col] == 0:
             app.playerX = col * app.cellSize + app.cellSize / 2
             app.playerY = row * app.cellSize + app.cellSize / 2
-    
+    elif key == 'e' and app.wallBreaksLeft > 0:
+        angle = math.radians(app.angle if app.game3D else
+        {'w': 270, 'a': 180, 's': 90, 'd': 0}.get(app.lastKeyPressed, 0))
+        for r in range(1, 100):
+            rayX = app.playerX + r * app.cellSize/10 * math.cos(angle)
+            rayY = app.playerY + r * app.cellSize/10 * math.sin(angle)
+            row = int(rayY // app.cellSize)
+            col = int(rayX // app.cellSize)
+            if 0 < row < app.rows-1 and 0 < col < app.cols-1:
+                if app.maze[row][col] == 1:
+                    app.maze[row][col] = 0
+                    app.wallBreaksLeft -= 1
+                    break
+    if key in ['w', 'a', 's', 'd']:
+        app.lastKeyPressed = key
+#Learned mae generating algorithm last year in my math class.
+#Didn't look up any codes
+def carveMaze(app,startRow, startCol):
+    stack = [(startRow, startCol)]
+    while stack:
+        row, col = stack[-1]
+        directions = [(-2, 0), (2, 0), (0, -2), (0, 2)]
+        random.shuffle(directions)
+        carved = False
+        for dr, dc in directions:
+            newRow, newCol = row + dr, col + dc
+            if (0 < newRow < app.rows - 1) and (0 < newCol < app.cols - 1):
+                if app.maze[newRow][newCol] == 1:
+                    wallRow = row + dr // 2
+                    wallCol = col + dc // 2
+                    app.maze[wallRow][wallCol] = 0
+                    app.maze[newRow][newCol] = 0
+                    stack.append((newRow, newCol))
+                    carved = True
+                    break
+        if not carved:
+            stack.pop()
 
 def onKeyHold(app, keys):
     if app.gameOver:
@@ -130,8 +176,8 @@ def onKeyHold(app, keys):
         
         app.level += 1
         resetMaze(app)
+
 def resetMaze(app):
-    
     app.maze = [[1 for _ in range(app.cols)] for _ in range(app.rows)]
     startRow, startCol = 1, 1
     app.maze[startRow][startCol] = 0
@@ -145,14 +191,10 @@ def resetMaze(app):
     app.playerX = startCol * app.cellSize + app.cellSize / 2
     app.playerY = startRow * app.cellSize + app.cellSize / 2
     generateCubes(app)
-    
-
-def onMousePress(app, mouseX, mouseY):
-    if app.startScreen:
-        # Check if click is inside the Start button
-        btnX, btnY, btnW, btnH = app.width/2 - 75, app.height * 0.7, 150, 50
-        if btnX <= mouseX <= btnX + btnW and btnY <= mouseY <= btnY + btnH:
-            app.startScreen = False
+    app.levelScreen = True
+    app.levelScreenTimer = 20
+    app.timer = 30
+    app.wallBreaksLeft = 3
 
 def generateCubes(app):
     while len(app.cubes) < app.level:
@@ -161,43 +203,6 @@ def generateCubes(app):
         if app.maze[row][col] == 0 and (row, col) not in [app.start, app.end]:
             app.cubes.append((row, col))
 
-def getDistance(app, x, y):
-    return ((x - app.playerX) ** 2 + (y - app.playerY) ** 2) ** 0.5
-
-def getHitType(app, row, col):
-    if app.maze[row][col] == 1:
-        return 'wall'
-    elif (row, col) == app.start:
-        return 'start'
-    elif (row, col) == app.end:
-        return 'end'
-    elif (row, col) in app.cubes:
-        return 'cube'
-    return None
-def carveMaze(app, startRow, startCol):
-    stack = [(startRow, startCol)]  # fixed variable name
-
-    while stack:
-        row, col = stack[-1]  # peek the top of the stack
-
-        directions = [(-2, 0), (2, 0), (0, -2), (0, 2)]
-        random.shuffle(directions)
-
-        carved = False
-        for dr, dc in directions:
-            newRow, newCol = row + dr, col + dc
-            if (0 < newRow < app.rows - 1) and (0 < newCol < app.cols - 1):
-                if app.maze[newRow][newCol] == 1:
-                    wallRow = row + dr // 2
-                    wallCol = col + dc // 2
-                    app.maze[wallRow][wallCol] = 0
-                    app.maze[newRow][newCol] = 0
-                    stack.append((newRow, newCol))
-                    carved = True
-                    break  # only carve one direction at a time
-
-        if not carved:
-            stack.pop()  # backtrack
 def isLegal(app, x, y):
     r = app.playerRadius
     if not (r <= x <= app.width - r and r <= y <= app.height - r):
@@ -210,6 +215,8 @@ def isLegal(app, x, y):
         row = int(py // app.cellSize)
         col = int(px // app.cellSize)
         if app.maze[row][col] == 1:
+            return False
+        if (row, col) == (app.start):
             return False
         if (row, col) == (app.end) and len(app.cubes)>0:
             return False
@@ -270,7 +277,7 @@ def redrawAll(app):
                    fill='white', bold=True)
         return  # Don't draw the game yet if start screen is active
     if app.game3D:
-        draw3DView(app)  # MODIFIED: 3D rendering
+        draw3DView(app)
         
     else:
         
@@ -298,6 +305,24 @@ def redrawAll(app):
         drawLabel(f"Breaks left: {app.wallBreaksLeft}", app.width//2,
                    app.height-10, size=18, bold=True, fill='white')
 
+# HELPER: draw the 3D raycasting view
+def getDistance(app, x, y):
+    return ((x - app.playerX) ** 2 + (y - app.playerY) ** 2) ** 0.5
+
+def getHitType(app, row, col):
+    if app.maze[row][col] == 1:
+        return 'wall'
+    elif (row, col) == app.start:
+        return 'start'
+    elif (row, col) == app.end:
+        return 'end'
+    elif (row, col) in app.cubes:
+        return 'cube'
+    return None
+
+#Watched a lot of videos about raycasting
+#https://youtu.be/ECqUrT7IdqQ?feature=shared
+#https://lodev.org/cgtutor/raycasting.html
 def draw3DView(app):
     stepRad = math.radians(0.45) # 200
     rayCount = 200
@@ -309,8 +334,10 @@ def draw3DView(app):
 
     # Cast rays
     for i in range(rayCount):
+        #Bigger angle for each ray
         angle = startRad + i * stepRad
         for r in range(1, rayLength + 1):
+            #go from 1 to 100 radius length and see if it hits everything
             rayX = app.playerX + r * math.cos(angle)
             rayY = app.playerY + r * math.sin(angle)
             row = int(rayY // app.cellSize)
@@ -325,8 +352,8 @@ def draw3DView(app):
                 rayHits.append((i, dist, hitType))
                 break
 
-    drawRect(0,0, app.width, app.height, fill='goldenrod')
-    drawRect(0,0, app.width, app.height//2,fill='beige')
+    drawRect(0,0, app.width, app.height, fill='olive')
+    drawRect(0,0, app.width, app.height//2,fill='goldenrod')
 
     # Dark gradient overlay
     drawRect(0, 0, app.width, app.height, fill=gradient('white', 'black'),
